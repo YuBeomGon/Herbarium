@@ -1,0 +1,11 @@
+*/saved_models/*
+*/tuning_logs/*
+*/wandb/*
+*/notebooks/lightning_logs/*
+.ipynb_checkpoints/*
+__pycache__/*
+*/.ipynb_checkpoints/*
+*/__pycache__/*
+*/*/.ipynb_checkpoints/*
+*/*/__pycache__/*
+
