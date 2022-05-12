@@ -44,7 +44,7 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                     help='model architecture: (default: resnet18)')
 parser.add_argument('-j', '--workers', default=12, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
+parser.add_argument('--epochs', default=12, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N',
@@ -95,24 +95,22 @@ if __name__ == "__main__":
                             filename='herb_tunning_{epoch}_{val_acc1:.2f}'),  
             ModelCheckpoint(monitor="val_acc1", mode="max",
                             dirpath=args.saved_dir + '/' + args.arch,
-                            filename='herb_tunning_best'),             
+                            filename='herb_tunning_best'),  
+            EarlyStopping(monitor="val_loss", patience=3, mode="min"),
+            LearningRateMonitor(logging_interval='step'),
         ],    
         # plugins = "deepspeed_stage_2_offload",
+        # plugins = "deepspeed_stage_3",
         precision = 16,
         max_epochs = args.epochs,
         accelerator = args.accelerator, # auto, or select device, "gpu"
         devices = -1, # use of available gpus
         logger = [logger_tb, logger_wandb],
         benchmark = True,
-        strategy = "ddp",
+        # strategy = "ddp",
+        strategy = "ddp_sharded",
+        
         )
-    
-    model = HerbClsModel(
-        arch=args.arch,
-        pretrained=args.pretrained,
-        lr = args.lr,
-        weight_decay=args.weight_decay,
-        from_contra=args.from_contra)
     
     # csv file correction for training
     df = pd.read_csv(args.data_path + 'df.csv')
@@ -121,7 +119,19 @@ if __name__ == "__main__":
     # df.image_dir = df.image_dir.apply(lambda x : re.sub('../dataset','./dataset', x))
     
     # set dataModule
-    dm = HerbDataModule(df, batch_size=args.batch_size, workers=args.workers, transform=train_transforms)    
+    dm = HerbDataModule(df, batch_size=args.batch_size, workers=args.workers, transform=None) 
+    
+    dm.setup(stage='fit')
+    steps_per_epoch = len(dm.train_dataloader())
+    
+    model = HerbClsModel(
+        arch=args.arch,
+        pretrained=args.pretrained,
+        lr = args.lr,
+        weight_decay=args.weight_decay,
+        from_contra=args.from_contra,
+        steps_per_epoch=steps_per_epoch,
+        epochs=args.epochs)    
     
     path = args.from_contra + '/' + args.arch
     if os.path.isdir(path) and 'herb-contra_best.ckpt' in os.listdir(path) :

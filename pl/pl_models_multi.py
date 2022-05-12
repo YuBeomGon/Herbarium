@@ -25,7 +25,6 @@ from pytorch_lightning.utilities.cli import LightningCLI
 from pytorch_lightning import Trainer
 # from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
 from pytorch_lightning.plugins import DDPPlugin
 from torchmetrics import Accuracy, F1Score, Specificity
 
@@ -50,6 +49,8 @@ class HerbClsModel(LightningModule) :
         num_classes2: int = 2564, # Herbarium num classess(genus) 
         num_classes3: int = 60, # Herbarium num classess(institutions)         
         from_contra : str = './saved_models/contra/',
+        steps_per_epoch : int = 100,
+        epochs : int = 10,
         # is_contra: bool = False,
     ):
         
@@ -63,6 +64,8 @@ class HerbClsModel(LightningModule) :
         self.num_classes2 = num_classes2
         self.num_classes3 = num_classes3
         self.from_contra = from_contra
+        self.steps_per_epoch = steps_per_epoch
+        self.epochs = epochs
 
         if self.arch in custom_models.__dict__.keys() : 
             # self.model = custom_models.__dict__[self.arch](pretrained=False, img_size=args.img_size)
@@ -213,8 +216,17 @@ class HerbClsModel(LightningModule) :
     def configure_optimizers(self) :
         optimizer = optim.SGD(filter(lambda p: p.requires_grad, self.parameters()), 
                               lr=self.lr, momentum=self.momentum, weight_decay=self.weight_decay)
+        # scheduler = lr_scheduler.LambdaLR(optimizer, lambda epoch : 0.1 **(epoch //30))
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                                                        optimizer, 
+                                                        epochs              = self.epochs, 
+                                                        steps_per_epoch     = self.steps_per_epoch, 
+                                                        max_lr              = 0.01, 
+                                                        pct_start           = 0.1,  
+                                                        div_factor          = 25,   
+                                                        final_div_factor    = 1e+4
+                                                       ) 
         
-        scheduler = lr_scheduler.LambdaLR(optimizer, lambda epoch : 0.1 **(epoch //30))
         return [optimizer], [scheduler]
     
 #     load contra checkpoint in fine tuning
