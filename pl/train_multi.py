@@ -32,7 +32,6 @@ from pytorch_lightning.plugins import DDPPlugin
 from utils.dataset_multi import HerbDataset
 from utils.losses import SupConLoss, FocalLoss
 from utils.dataset_utils import LabelEncoder
-import custom_models
 from pl_models_multi import *
 
 # import custom_models
@@ -129,7 +128,6 @@ if __name__ == "__main__":
         pretrained=args.pretrained,
         lr = args.lr,
         weight_decay=args.weight_decay,
-        from_contra=args.from_contra,
         steps_per_epoch=steps_per_epoch,
         epochs=args.epochs)    
     
